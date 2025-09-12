@@ -155,8 +155,8 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		myrw := &responseWriter{
 			buffer:         &bytes.Buffer{},
 			ResponseWriter: rw,
-			// statusCode:     200, // default status code
-			// headerWritten:  false,
+			statusCode:     200, // default status code
+			headerWritten:  false,
 		}
 		myrw.Header().Set("Accept-Encoding", "identity")
 		h.next.ServeHTTP(myrw, req)
@@ -180,7 +180,7 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 				rw.Header().Set("Content-Length", strconv.Itoa(len(newBytes)))
 				
 				// Write status code
-				// rw.WriteHeader(myrw.statusCode)
+				rw.WriteHeader(myrw.statusCode)
 				
 				// Write the modified content
 				_, err := rw.Write(newBytes)
@@ -207,22 +207,22 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 
 type responseWriter struct {
 	buffer        *bytes.Buffer
-	// statusCode    int
-	// headerWritten bool
+	statusCode    int
+	headerWritten bool
 	http.ResponseWriter
 }
 
-// func (w *responseWriter) WriteHeader(statusCode int) {
-// 	if !w.headerWritten {
-// 		w.statusCode = statusCode
-// 		w.headerWritten = true
-// 		// Don't call the underlying WriteHeader yet - we'll do it later
-// 	}
-// }
+func (w *responseWriter) WriteHeader(statusCode int) {
+	if !w.headerWritten {
+		w.statusCode = statusCode
+		w.headerWritten = true
+		// Don't call the underlying WriteHeader yet - we'll do it later
+	}
+}
 
 func (w *responseWriter) Write(p []byte) (int, error) {
-	// if !w.headerWritten {
-	// 	w.WriteHeader(200) // default status code
-	// }
+	if !w.headerWritten {
+		w.WriteHeader(200) // default status code
+	}
 	return w.buffer.Write(p)
 }
