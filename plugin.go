@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -153,18 +154,48 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		h.next.ServeHTTP(myrw, req)
 
 		if strings.HasPrefix(myrw.Header().Get("Content-Type"), "text/html") {
-		    h.log(fmt.Sprintf("Inject %s", req.URL.EscapedPath()))
-		    origBytes := myrw.buffer.Bytes()
-		    newBytes := regexReplaceSingle(origBytes, insertBeforeRegex, h.scriptHtml)
-			h.log(fmt.Sprintf("Orig %s", origBytes))
-			h.log(fmt.Sprintf("New %s", newBytes))
-		    if !bytes.Equal(origBytes, newBytes) {
-		        _, err := rw.Write(newBytes)
-		        if err != nil {
-		            h.log(err.Error())
-		        }
-		        injected = true
-		    }
+			h.log(fmt.Sprintf("Processing HTML response for injection on path: %s", req.URL.EscapedPath()))
+			
+			origBytes := myrw.buffer.Bytes()
+			origLength := len(origBytes)
+			h.log(fmt.Sprintf("Original content length: %d", origLength))
+			
+			// Get original Content-Length header if it exists
+			origContentLength := myrw.Header().Get("Content-Length")
+			h.log(fmt.Sprintf("Original Content-Length header: %s", origContentLength))
+			
+			newBytes := regexReplaceSingle(origBytes, insertBeforeRegex, h.scriptHtml)
+			newLength := len(newBytes)
+			
+			if !bytes.Equal(origBytes, newBytes) {
+				h.log(fmt.Sprintf("Script injected successfully. New content length: %d (delta: +%d)", newLength, newLength-origLength))
+				
+				// Update Content-Length header to match new content size
+				rw.Header().Set("Content-Length", strconv.Itoa(newLength))
+				h.log(fmt.Sprintf("Updated Content-Length header to: %d", newLength))
+				
+				// Copy other headers from the intercepted response
+				for key, values := range myrw.Header() {
+					if key != "Content-Length" {
+						for _, value := range values {
+							rw.Header().Add(key, value)
+						}
+					}
+				}
+				
+				_, err := rw.Write(newBytes)
+				if err != nil {
+					h.log(fmt.Sprintf("Error writing modified response: %s", err.Error()))
+				} else {
+					h.log("Modified response written successfully")
+				}
+				injected = true
+			} else {
+				h.log("No injection performed - content unchanged")
+			}
+		} else {
+			contentType := myrw.Header().Get("Content-Type")
+			h.log(fmt.Sprintf("Skipping injection - not HTML content. Content-Type: %s", contentType))
 		}
 	}
 
@@ -176,7 +207,7 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if !injected {
-		// h.log(fmt.Sprintf("Continue %s", req.URL.EscapedPath()))
+		h.log(fmt.Sprintf("Passing through original response for path: %s", req.URL.EscapedPath()))
 		h.next.ServeHTTP(rw, req)
 	}
 }
