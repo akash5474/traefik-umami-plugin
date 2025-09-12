@@ -155,7 +155,7 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		myrw := &responseWriter{
 			buffer:         &bytes.Buffer{},
 			ResponseWriter: rw,
-			statusCode:     200, // default status code
+			// statusCode:     200, // default status code
 			headerWritten:  false,
 		}
 		myrw.Header().Set("Accept-Encoding", "identity")
@@ -180,7 +180,7 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 				rw.Header().Set("Content-Length", strconv.Itoa(len(newBytes)))
 				
 				// Write status code
-				rw.WriteHeader(myrw.statusCode)
+				// rw.WriteHeader(myrw.statusCode)
 				
 				// Write the modified content
 				_, err := rw.Write(newBytes)
