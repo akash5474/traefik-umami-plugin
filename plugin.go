@@ -156,7 +156,7 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			buffer:         &bytes.Buffer{},
 			ResponseWriter: rw,
 			// statusCode:     200, // default status code
-			headerWritten:  false,
+			// headerWritten:  false,
 		}
 		myrw.Header().Set("Accept-Encoding", "identity")
 		h.next.ServeHTTP(myrw, req)
@@ -206,23 +206,23 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 }
 
 type responseWriter struct {
-	buffer        *bytes.Buffer
-	statusCode    int
-	headerWritten bool
+	// buffer        *bytes.Buffer
+	// statusCode    int
+	// headerWritten bool
 	http.ResponseWriter
 }
 
-func (w *responseWriter) WriteHeader(statusCode int) {
-	if !w.headerWritten {
-		w.statusCode = statusCode
-		w.headerWritten = true
-		// Don't call the underlying WriteHeader yet - we'll do it later
-	}
-}
+// func (w *responseWriter) WriteHeader(statusCode int) {
+// 	if !w.headerWritten {
+// 		w.statusCode = statusCode
+// 		w.headerWritten = true
+// 		// Don't call the underlying WriteHeader yet - we'll do it later
+// 	}
+// }
 
 func (w *responseWriter) Write(p []byte) (int, error) {
-	if !w.headerWritten {
-		w.WriteHeader(200) // default status code
-	}
+	// if !w.headerWritten {
+	// 	w.WriteHeader(200) // default status code
+	// }
 	return w.buffer.Write(p)
 }
