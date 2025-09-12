@@ -159,14 +159,6 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			h.log(fmt.Sprintf("Orig %s", origBytes))
 			h.log(fmt.Sprintf("New %s", newBytes))
 		    if !bytes.Equal(origBytes, newBytes) {
-		        // Copy headers from intercepted response to actual response
-		        for key, values := range myrw.Header() {
-		            for _, value := range values {
-		                rw.Header().Add(key, value)
-		            }
-		        }
-		        rw.Header().Del("Content-Length")  // Remove after copying
-		        h.log("Content-Length header removed")
 		        _, err := rw.Write(newBytes)
 		        if err != nil {
 		            h.log(err.Error())
