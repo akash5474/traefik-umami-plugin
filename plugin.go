@@ -153,9 +153,11 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		h.next.ServeHTTP(myrw, req)
 
 		if strings.HasPrefix(myrw.Header().Get("Content-Type"), "text/html") {
-		    // h.log(fmt.Sprintf("Inject %s", req.URL.EscapedPath()))
+		    h.log(fmt.Sprintf("Inject %s", req.URL.EscapedPath()))
 		    origBytes := myrw.buffer.Bytes()
 		    newBytes := regexReplaceSingle(origBytes, insertBeforeRegex, h.scriptHtml)
+			h.log(fmt.Sprintf("Orig %s", origBytes))
+			h.log(fmt.Sprintf("New %s", newBytes))
 		    if !bytes.Equal(origBytes, newBytes) {
 		        // Copy headers from intercepted response to actual response
 		        for key, values := range myrw.Header() {
