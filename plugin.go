@@ -145,6 +145,12 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	// script injection
 	var injected bool = false
 	if h.config.ScriptInjection {
+		// Skip script injection for HTMX requests
+		if req.Header.Get("HX-Request") == "true" {
+			h.next.ServeHTTP(rw, req)
+			return
+		}
+
 		// intercept body
 		myrw := &responseWriter{
 			buffer:         &bytes.Buffer{},
@@ -156,22 +162,10 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		h.next.ServeHTTP(myrw, req)
 
 		if strings.HasPrefix(myrw.Header().Get("Content-Type"), "text/html") {
-			h.log(fmt.Sprintf("Processing HTML response for injection on path: %s", req.URL.EscapedPath()))
-			
 			origBytes := myrw.buffer.Bytes()
-			origLength := len(origBytes)
-			h.log(fmt.Sprintf("Original content length: %d", origLength))
-			
-			// Get original Content-Length header if it exists
-			origContentLength := myrw.Header().Get("Content-Length")
-			h.log(fmt.Sprintf("Original Content-Length header: %s", origContentLength))
-			
 			newBytes := regexReplaceSingle(origBytes, insertBeforeRegex, h.scriptHtml)
-			newLength := len(newBytes)
 			
 			if !bytes.Equal(origBytes, newBytes) {
-				h.log(fmt.Sprintf("Script injected successfully. New content length: %d (delta: +%d)", newLength, newLength-origLength))
-				
 				// Copy headers from intercepted response to actual response
 				for key, values := range myrw.Header() {
 					// Skip Content-Length as we'll set it manually
@@ -183,27 +177,18 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 				}
 				
 				// Set the correct Content-Length for the modified content
-				rw.Header().Set("Content-Length", strconv.Itoa(newLength))
-				h.log(fmt.Sprintf("Set Content-Length header to: %d", newLength))
+				rw.Header().Set("Content-Length", strconv.Itoa(len(newBytes)))
 				
 				// Write status code
 				rw.WriteHeader(myrw.statusCode)
-				h.log(fmt.Sprintf("Writing response with status code: %d", myrw.statusCode))
 				
 				// Write the modified content
-				bytesWritten, err := rw.Write(newBytes)
+				_, err := rw.Write(newBytes)
 				if err != nil {
-					h.log(fmt.Sprintf("Error writing modified response: %s", err.Error()))
-				} else {
-					h.log(fmt.Sprintf("Modified response written successfully: %d bytes", bytesWritten))
+					h.log(err.Error())
 				}
 				injected = true
-			} else {
-				h.log("No injection performed - content unchanged")
 			}
-		} else {
-			contentType := myrw.Header().Get("Content-Type")
-			h.log(fmt.Sprintf("Skipping injection - not HTML content. Content-Type: %s", contentType))
 		}
 	}
 
@@ -215,7 +200,7 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if !injected {
-		h.log(fmt.Sprintf("Passing through original response for path: %s", req.URL.EscapedPath()))
+		// h.log(fmt.Sprintf("Continue %s", req.URL.EscapedPath()))
 		h.next.ServeHTTP(rw, req)
 	}
 }
