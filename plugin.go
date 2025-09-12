@@ -149,6 +149,8 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		myrw := &responseWriter{
 			buffer:         &bytes.Buffer{},
 			ResponseWriter: rw,
+			statusCode:     200, // default status code
+			headerWritten:  false,
 		}
 		myrw.Header().Set("Accept-Encoding", "identity")
 		h.next.ServeHTTP(myrw, req)
@@ -170,24 +172,30 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			if !bytes.Equal(origBytes, newBytes) {
 				h.log(fmt.Sprintf("Script injected successfully. New content length: %d (delta: +%d)", newLength, newLength-origLength))
 				
-				// Update Content-Length header to match new content size
-				rw.Header().Set("Content-Length", strconv.Itoa(newLength))
-				h.log(fmt.Sprintf("Updated Content-Length header to: %d", newLength))
-				
-				// Copy other headers from the intercepted response
+				// Copy headers from intercepted response to actual response
 				for key, values := range myrw.Header() {
-					if key != "Content-Length" {
+					// Skip Content-Length as we'll set it manually
+					if strings.ToLower(key) != "content-length" {
 						for _, value := range values {
 							rw.Header().Add(key, value)
 						}
 					}
 				}
 				
-				_, err := rw.Write(newBytes)
+				// Set the correct Content-Length for the modified content
+				rw.Header().Set("Content-Length", strconv.Itoa(newLength))
+				h.log(fmt.Sprintf("Set Content-Length header to: %d", newLength))
+				
+				// Write status code
+				rw.WriteHeader(myrw.statusCode)
+				h.log(fmt.Sprintf("Writing response with status code: %d", myrw.statusCode))
+				
+				// Write the modified content
+				bytesWritten, err := rw.Write(newBytes)
 				if err != nil {
 					h.log(fmt.Sprintf("Error writing modified response: %s", err.Error()))
 				} else {
-					h.log("Modified response written successfully")
+					h.log(fmt.Sprintf("Modified response written successfully: %d bytes", bytesWritten))
 				}
 				injected = true
 			} else {
@@ -213,10 +221,23 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 }
 
 type responseWriter struct {
-	buffer *bytes.Buffer
+	buffer        *bytes.Buffer
+	statusCode    int
+	headerWritten bool
 	http.ResponseWriter
 }
 
+func (w *responseWriter) WriteHeader(statusCode int) {
+	if !w.headerWritten {
+		w.statusCode = statusCode
+		w.headerWritten = true
+		// Don't call the underlying WriteHeader yet - we'll do it later
+	}
+}
+
 func (w *responseWriter) Write(p []byte) (int, error) {
+	if !w.headerWritten {
+		w.WriteHeader(200) // default status code
+	}
 	return w.buffer.Write(p)
 }
