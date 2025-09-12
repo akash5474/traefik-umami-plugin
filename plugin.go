@@ -206,7 +206,7 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 }
 
 type responseWriter struct {
-	// buffer        *bytes.Buffer
+	buffer        *bytes.Buffer
 	// statusCode    int
 	// headerWritten bool
 	http.ResponseWriter
