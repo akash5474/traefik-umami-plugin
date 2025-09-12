@@ -153,7 +153,7 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		h.next.ServeHTTP(myrw, req)
 
 		if strings.HasPrefix(myrw.Header().Get("Content-Type"), "text/html") {
-			// h.log(fmt.Sprintf("Inject %s", req.URL.EscapedPath()))
+			h.log(fmt.Sprintf("Inject %s", req.URL.EscapedPath()))
 			origBytes := myrw.buffer.Bytes()
 			newBytes := regexReplaceSingle(origBytes, insertBeforeRegex, h.scriptHtml)
 			if !bytes.Equal(origBytes, newBytes) {
