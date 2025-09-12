@@ -153,17 +153,24 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		h.next.ServeHTTP(myrw, req)
 
 		if strings.HasPrefix(myrw.Header().Get("Content-Type"), "text/html") {
-			h.log(fmt.Sprintf("Inject %s", req.URL.EscapedPath()))
-			origBytes := myrw.buffer.Bytes()
-			newBytes := regexReplaceSingle(origBytes, insertBeforeRegex, h.scriptHtml)
-			if !bytes.Equal(origBytes, newBytes) {
-				rw.Header().Del("Content-Length")
-				_, err := rw.Write(newBytes)
-				if err != nil {
-					h.log(err.Error())
-				}
-				injected = true
-			}
+		    // h.log(fmt.Sprintf("Inject %s", req.URL.EscapedPath()))
+		    origBytes := myrw.buffer.Bytes()
+		    newBytes := regexReplaceSingle(origBytes, insertBeforeRegex, h.scriptHtml)
+		    if !bytes.Equal(origBytes, newBytes) {
+		        // Copy headers from intercepted response to actual response
+		        for key, values := range myrw.Header() {
+		            for _, value := range values {
+		                rw.Header().Add(key, value)
+		            }
+		        }
+		        rw.Header().Del("Content-Length")  // Remove after copying
+		        h.log("Content-Length header removed")
+		        _, err := rw.Write(newBytes)
+		        if err != nil {
+		            h.log(err.Error())
+		        }
+		        injected = true
+		    }
 		}
 	}
 
