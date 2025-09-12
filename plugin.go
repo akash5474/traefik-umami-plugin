@@ -157,6 +157,7 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			origBytes := myrw.buffer.Bytes()
 			newBytes := regexReplaceSingle(origBytes, insertBeforeRegex, h.scriptHtml)
 			if !bytes.Equal(origBytes, newBytes) {
+				rw.Header().Del("Content-Length")
 				_, err := rw.Write(newBytes)
 				if err != nil {
 					h.log(err.Error())
