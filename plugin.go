@@ -151,6 +151,11 @@ func (h *PluginHandler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 			return
 		}
 
+		if !strings.Contains(req.Header.Get("Accept"), "text/html") {
+        	h.next.ServeHTTP(rw, req)
+        	return
+    	}
+
 		// intercept body
 		myrw := &responseWriter{
 			buffer:         &bytes.Buffer{},
